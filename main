@@ -1,0 +1,263 @@
+# Program name: Budget Manager
+# Author: Vince Patalinghug
+# This GUI program has two frames in the main window. The user uses
+# the first frame to input budgets, which are recorded in a file as
+# categories with corresponding dollar amounts. The second fram is
+# used to input categorized transactions. There is an analyze button
+# that launches a window that displays a table with the category spend
+# totals and the variance of these totals from the budgeted amounts.
+#
+#
+#
+import tkinter as tk
+from tkinter import ttk
+
+class BudgetManager:
+    def __init__(self, master):
+        self.master = master
+        master.title("Budget Manager")
+        
+        # set the window size and position
+        master.geometry("800x600+0+0")
+        
+        # create a Notebook widget
+        self.notebook = ttk.Notebook(master)
+        self.notebook.pack(fill='both', expand=True)
+
+        # create the Budgets tab
+        self.budgets_frame = tk.Frame(self.notebook)
+        self.notebook.add(self.budgets_frame, text="Budgets")
+
+        # create the "Add Category" button
+        self.add_category_button = tk.Button(self.budgets_frame, text="Add Category", command=self.add_category)
+        self.add_category_button.pack()
+
+        # create the "Clear budget Data" button
+        self.clear_data_button = tk.Button(self.budgets_frame, text="Clear Budgets", command=self.clear_data)
+        self.clear_data_button.pack()
+
+        #read the budget and transaction data from the files
+        self.budget_list = []
+        self.transaction_list = []
+        try:
+            with open('budget_data.txt', 'r') as f:
+                for line in f:
+                    category, amount = line.strip().split(',')
+                    self.budget_list.append((category, float(amount)))
+        except FileNotFoundError:
+            pass
+
+        try:
+            with open('transaction_data.txt', 'r') as f:
+                for line in f:
+                    category, amount = line.strip().split(',')
+                    self.transaction_list.append((category, float(amount)))
+        except FileNotFoundError:
+            pass
+
+        # create a label to display the categories and amounts
+        self.category_label = tk.Label(self.budgets_frame, text=self.get_category_string())
+        self.category_label.pack()
+
+        # create the Transactions tab
+        self.transactions_frame = tk.Frame(self.notebook)
+        self.notebook.add(self.transactions_frame, text="Transactions")
+
+        # create the widgets for the Transactions tab
+        self.add_transaction_button = tk.Button(self.transactions_frame, text="Add Transaction", command=self.add_transaction_click)
+        self.add_transaction_button.pack()
+        self.clear_transactions_button = tk.Button(self.transactions_frame, text="Clear Transactions", command=self.clear_transactions)
+        self.clear_transactions_button.pack()
+        self.analyze_transactions_button = tk.Button(self.transactions_frame, text = "Analyze", command = self.display_analysis)
+        self.analyze_transactions_button.pack()
+
+        # create a label to display the transaction data
+        self.transaction_label = tk.Label(self.transactions_frame, text=self.get_transaction_string())
+        self.transaction_label.pack()
+        
+        
+
+    def add_transaction_click(self):
+        # create a new window for adding transactions
+        window = tk.Toplevel(self.master)
+        window.title("Add Transaction")
+
+        # create a label and entry widget for the transaction category
+        tk.Label(window, text="Category").grid(row=0, column=0, padx=5, pady=5)
+        category_entry = tk.Entry(window)
+        category_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        # create a label and entry widget for the transaction amount
+        tk.Label(window, text="Amount").grid(row=1, column=0, padx=5, pady=5)
+        amount_entry = tk.Entry(window)
+        amount_entry.grid(row=1, column=1, padx=5, pady=5)
+
+        # create a button to submit the transaction
+        submit_button = tk.Button(window, text="Submit", command=lambda: self.add_transaction(category_entry.get(), amount_entry.get(), window))
+        submit_button.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+    def add_transaction(self, category, amount, window):
+        # add the transaction to the transaction list
+        self.transaction_list.append((category, float(amount)))
+
+        # format the transaction data
+        transaction_text = ""
+        for transaction in self.transaction_list:
+            transaction_text += "{}: ${:.2f}\n".format(transaction[0], transaction[1])
+
+        # update the transaction label
+        self.transaction_label.config(text=transaction_text)
+
+        # write the transaction data to the file
+        with open('transaction_data.txt', 'a') as f:
+            f.write('{},{}\n'.format(category, amount))
+
+        # close the add transaction window
+        window.destroy()
+
+
+    def add_category(self):
+        add_category_window = tk.Toplevel(self.master)
+        add_category_window.title("Add Category")
+        
+        # create a label and entry widget for category name
+        tk.Label(add_category_window, text="Category Name").grid(row=0, column=0, padx=5, pady=5)
+        category_name_entry = tk.Entry(add_category_window)
+        category_name_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        # create a label and entry widget for category amount
+        tk.Label(add_category_window, text="Category Amount").grid(row=1, column=0, padx=5, pady=5)
+        category_amount_entry = tk.Entry(add_category_window)
+        category_amount_entry.grid(row=1, column=1, padx=5, pady=5)
+        
+        # create a button to submit category
+        submit_button = tk.Button(add_category_window, text="Submit", command=lambda: self.add_category_submit(category_name_entry.get(), category_amount_entry.get(), add_category_window))
+        submit_button.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+
+    def add_category_submit(self, name, amount, window):
+        # add the category to the budget list
+        self.budget_list.append((name, float(amount)))
+        
+        # update the category label
+        self.category_label.config(text=self.get_category_string())
+
+        # write the budget data to the file
+        with open('budget_data.txt', 'w') as f:
+            for category, amount in self.budget_list:
+                f.write('{},{}\n'.format(category, amount))
+
+        # close the add category window
+        window.destroy()
+
+
+    def clear_data(self):
+        # clear the budget list
+        self.budget_list = []
+        
+        # update the category label
+        self.category_label.config(text=self.get_category_string())
+
+        # write an empty string to the file to clear it
+        with open('budget_data.txt', 'w') as f:
+            f.write('')
+
+        # update the transaction label
+        self.transaction_label.config(text="No transactions yet")
+    def clear_transactions(self):
+        # clear the transaction data
+        self.transaction_list.clear()
+
+        # update the transaction label
+        transaction_text = self.get_transaction_string()
+        self.transaction_label.config(text=transaction_text)
+        
+        # write an empty string to the file to clear it
+        with open('transaction_data.txt', 'w') as f:
+            f.write('')
+
+    def get_category_string(self):
+        # format the budget data
+        category_text = ""
+        for category, amount in self.budget_list:
+            category_text += "{}: ${:.2f}\n".format(category, amount)
+        if not category_text:
+            category_text = "No categories yet"
+        return category_text
+    def get_transaction_string(self):
+        # format the transaction data
+        transaction_text = ""
+        for category, amount in self.transaction_list:
+            transaction_text += "{}: ${:.2f}\n".format(category, amount)
+        if not transaction_text:
+            transaction_text = "No transactions yet"
+        return transaction_text
+
+    def display_analysis(self):
+        # read transaction data from transaction_data.txt
+        with open('transaction_data.txt', 'r') as f:
+            transactions = f.readlines()
+
+        # initialize empty dictionaries for transaction totals and variances
+        transaction_totals = {}
+        variances = {}
+
+        # calculate transaction totals by category
+        for transaction in transactions:
+            category, amount = transaction.strip().split(',')
+            if category not in transaction_totals:
+                transaction_totals[category] = float(amount)
+            else:
+                transaction_totals[category] += float(amount)
+
+        # read budget data from budget_data.txt
+        with open('budget_data.txt', 'r') as f:
+            budgets = f.readlines()
+
+        # calculate variances by category
+        for budget in budgets:
+            category, budget_amount = budget.strip().split(',')
+            if category in transaction_totals:
+                variance = float(budget_amount) - transaction_totals[category]
+            else:
+                variance = float(budget_amount)
+            variances[category] = variance
+
+        # create table with category, transaction total, and variance
+        table_data = []
+        for category in transaction_totals:
+            transaction_total = transaction_totals[category]
+            variance = variances[category]
+            table_data.append([category, transaction_total, variance])
+
+        # create a new window for displaying the analysis
+        analysis_window = tk.Toplevel()
+        analysis_window.title('Analysis')
+
+        # create a label for the table
+        table_label = tk.Label(analysis_window, text='Transaction Analysis', font=('Arial', 14, 'bold'))
+        table_label.pack()
+
+        # create a table using ttk Treeview
+        table = ttk.Treeview(analysis_window, columns=('Transaction Total', 'Variance'))
+        table.heading('#0', text='Category')
+        table.heading('Transaction Total', text='Transaction Total')
+        table.heading('Variance', text='Variance')
+        table.column('#0', width=200)
+        table.column('Transaction Total', width=200)
+        table.column('Variance', width=200)
+
+        # populate the table with data
+        for data in table_data:
+            category = data[0]
+            transaction_total = data[1]
+            variance = data[2]
+            table.insert('', 'end', text=category, values=(transaction_total, variance))
+
+        # pack the table
+        table.pack()
+
+        
+root = tk.Tk()
+budget_manager = BudgetManager(root)
+root.mainloop()
+
